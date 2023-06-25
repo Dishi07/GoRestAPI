@@ -15,7 +15,7 @@ import (
 )
 
 func SignUpHandler(w http.ResponseWriter, r *http.Request) {
-	dbconf := "root:password@tcp(ishidataichinoMacBook-Pro.local:3306)/go_rest_api_server?charset=utf8mb4"
+	dbconf := ""
 	db, err := sql.Open("mysql", dbconf)
 	if err != nil {		
 		w.WriteHeader(http.StatusInternalServerError)
