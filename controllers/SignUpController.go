@@ -2,53 +2,67 @@ package signUp
 
 import (
 	"GoRestAPI/models"
+	"GoRestAPI/ja"
+
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
-
+	
 	_ "github.com/go-sql-driver/mysql"
 )
 
 func SignUpHandler(w http.ResponseWriter, r *http.Request) {
-	dbconf := ""
+	dbconf := "root:password@tcp(ishidataichinoMacBook-Pro.local:3306)/go_rest_api_server?charset=utf8mb4"
 	db, err := sql.Open("mysql", dbconf)
-	if err != nil {
-		fmt.Println("mysql open error:", err.Error())
+	if err != nil {		
 		w.WriteHeader(http.StatusInternalServerError)
+		errorMessage := errorMessage(ja.ServerErrorMessage)
+		w.Write([]byte(errorMessage))
 		return
 	}
 
 	var reqBody models.LoginParams
 	body, error := io.ReadAll(r.Body)
-	if error != nil {
-		fmt.Println("myspl read all error:", err)
+	if error != nil {		
 		w.WriteHeader(http.StatusInternalServerError)
+		errorMessage := errorMessage(ja.ServerErrorMessage)
+		w.Write([]byte(errorMessage))
 		return
 	}
 
-	if err := json.Unmarshal(body, &reqBody); err != nil {
-		fmt.Println("json decode error", err)
+	if err := json.Unmarshal(body, &reqBody); err != nil {		
 		w.WriteHeader(http.StatusInternalServerError)
+		errorMessage := []byte(errorMessage(ja.EncodeErrorMessage))
+		w.Write([]byte(errorMessage))
 		return
 	}
 
-	//sqlでmysql操作
-	//responseを返却する。
+	validateError := reqBody.Validates()
+	if validateError != nil {		
+		w.WriteHeader(http.StatusInternalServerError)
+		errorMessage := errorMessage(validateError.Error())
+		w.Write([]byte(errorMessage))
+		return
+	}
+
 	_, queryErr := db.Query("SELECT * FROM User WHERE email = ? ", reqBody.Email)
 
 	if !errors.Is(queryErr, sql.ErrNoRows) && queryErr != nil {
-		fmt.Println("select user error:", queryErr)
+		fmt.Println(queryErr)
 		w.WriteHeader(http.StatusInternalServerError)
+		errorMessage := errorMessage(ja.CreateUserErrorMessage)
+		w.Write([]byte(errorMessage))
 		return
 	}
 
 	encodedPassword, encodeError := reqBody.EncodePassword()
-	if encodeError != nil {
-		fmt.Println("password encode error:", encodeError)
+	if encodeError != nil {		
 		w.WriteHeader(http.StatusInternalServerError)
+		errorMessage := errorMessage(ja.EncodeErrorMessage)
+		w.Write([]byte(errorMessage))
 		return
 	}
 
@@ -58,13 +72,20 @@ func SignUpHandler(w http.ResponseWriter, r *http.Request) {
 		encodedPassword,
 	)
 
-	if insertError != nil {
-		fmt.Println("insert user error", insertError)
+	if insertError != nil {		
+		fmt.Println(insertError)
 		w.WriteHeader(http.StatusInternalServerError)
+		errorMessage := errorMessage(ja.CreateUserErrorMessage)
+		w.Write([]byte(errorMessage))
 		return
 	}
 
 	//201をreturn
 	w.WriteHeader(http.StatusCreated)
+	w.Write([]byte(ja.SuccessSignUpMessage))
 	defer db.Close()
+}
+
+func errorMessage(message string) string {
+	return fmt.Sprintf(`{"message": "%s"}`, message)
 }
