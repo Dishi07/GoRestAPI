@@ -1,4 +1,4 @@
-package controllers
+package signUp
 
 import (
 	"GoRestAPI/utils"
