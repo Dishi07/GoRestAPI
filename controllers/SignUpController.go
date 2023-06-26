@@ -35,7 +35,7 @@ func SignUpHandler(w http.ResponseWriter, r *http.Request) {
 
 	if err := json.Unmarshal(body, &reqBody); err != nil {		
 		w.WriteHeader(http.StatusInternalServerError)
-		errorMessage := []byte(errorMessage(ja.EncodeErrorMessage))
+		errorMessage := errorMessage(ja.EncodeErrorMessage)
 		w.Write([]byte(errorMessage))
 		return
 	}
@@ -79,8 +79,7 @@ func SignUpHandler(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(errorMessage))
 		return
 	}
-
-	//201をreturn
+	
 	w.WriteHeader(http.StatusCreated)
 	w.Write([]byte(ja.SuccessSignUpMessage))
 	defer db.Close()
