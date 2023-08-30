@@ -4,7 +4,8 @@ import (
 	"log"
 	"net/http"
 
-	signUp "GoRestAPI/controllers"
+	"GoRestAPI/controllers/signIn"
+	"GoRestAPI/controllers/signUp"
 )
 
 func main() {
@@ -13,6 +14,7 @@ func main() {
 
 func run() {
 	http.HandleFunc("/sign_up", signUp.SignUpHandler)
+	http.HandleFunc("/sign_in", signIn.SignInHandler)
 	err := http.ListenAndServe(":8080", nil)
 	if err != nil {
 		log.Fatal(err)
