@@ -6,20 +6,18 @@ import (
 	Utils "GoRestAPI/utils"
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 
 	"golang.org/x/crypto/bcrypt"
 )
 
-
-
 func SignInHandler(w http.ResponseWriter, r *http.Request) {
 	dbconf := ""
 	db, err := sql.Open("mysql", dbconf)
+	defer db.Close()
 
-	if err != nil {		
+	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		errorMessage := Utils.ErrorMessage(ja.ServerErrorMessage)
 		w.Write([]byte(errorMessage))
@@ -28,28 +26,28 @@ func SignInHandler(w http.ResponseWriter, r *http.Request) {
 
 	var reqBody models.LoginParams
 	body, error := io.ReadAll(r.Body)
-	if error != nil {		
+	if error != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		errorMessage := Utils.ErrorMessage(ja.ServerErrorMessage)
 		w.Write([]byte(errorMessage))
 		return
 	}
 
-	if err := json.Unmarshal(body, &reqBody); err != nil {		
+	if err := json.Unmarshal(body, &reqBody); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		errorMessage := Utils.ErrorMessage(ja.EncodeErrorMessage)
 		w.Write([]byte(errorMessage))
 		return
 	}
 
-	response := db.QueryRow("SELECT password FROM User WHERE email = ? ", reqBody.Email)
+	result := db.QueryRow("SELECT password FROM User WHERE email = ? ", reqBody.Email)
 
 	var passwordDigest string
-	if scanError := response.Scan(&passwordDigest); scanError != nil {
+	if scanError := result.Scan(&passwordDigest); scanError != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		errorMessage := Utils.ErrorMessage(ja.ServerErrorMessage)
+		errorMessage := Utils.ErrorMessage(ja.PasswordMissingMessage)
 		w.Write([]byte(errorMessage))
-		return 
+		return
 	}
 
 	missingPasswordError := bcrypt.CompareHashAndPassword([]byte(passwordDigest), []byte(reqBody.Password))
@@ -57,8 +55,14 @@ func SignInHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		errorMessage := Utils.ErrorMessage(ja.PasswordMissingMessage)
 		w.Write([]byte(errorMessage))
-		return 
+		return
 	}
 
-	defer db.Close()
+	token, err := Utils.EncodeJwtToken(reqBody.Email)
+	response := models.SessionResponse{
+		token,
+		ja.SuccessSignInMessage,
+	}
+	bytes, err := json.Marshal(response)
+	w.Write(bytes)
 }

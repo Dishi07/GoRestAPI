@@ -1,9 +1,9 @@
 package signUp
 
 import (
-	"GoRestAPI/utils"
 	"GoRestAPI/ja"
 	"GoRestAPI/models"
+	"GoRestAPI/utils"
 
 	"database/sql"
 	"encoding/json"
@@ -18,7 +18,8 @@ import (
 func SignUpHandler(w http.ResponseWriter, r *http.Request) {
 	dbconf := ""
 	db, err := sql.Open("mysql", dbconf)
-	if err != nil {		
+	defer db.Close()
+	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		errorMessage := Utils.ErrorMessage(ja.ServerErrorMessage)
 		w.Write([]byte(errorMessage))
@@ -27,14 +28,14 @@ func SignUpHandler(w http.ResponseWriter, r *http.Request) {
 
 	var reqBody models.LoginParams
 	body, error := io.ReadAll(r.Body)
-	if error != nil {		
+	if error != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		errorMessage := Utils.ErrorMessage(ja.ServerErrorMessage)
 		w.Write([]byte(errorMessage))
 		return
 	}
 
-	if err := json.Unmarshal(body, &reqBody); err != nil {		
+	if err := json.Unmarshal(body, &reqBody); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		errorMessage := Utils.ErrorMessage(ja.EncodeErrorMessage)
 		w.Write([]byte(errorMessage))
@@ -42,7 +43,7 @@ func SignUpHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	validateError := reqBody.Validates()
-	if validateError != nil {		
+	if validateError != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		errorMessage := Utils.ErrorMessage(validateError.Error())
 		w.Write([]byte(errorMessage))
@@ -60,7 +61,7 @@ func SignUpHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	encodedPassword, encodeError := reqBody.EncodePassword()
-	if encodeError != nil {		
+	if encodeError != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		errorMessage := Utils.ErrorMessage(ja.EncodeErrorMessage)
 		w.Write([]byte(errorMessage))
@@ -73,15 +74,19 @@ func SignUpHandler(w http.ResponseWriter, r *http.Request) {
 		encodedPassword,
 	)
 
-	if insertError != nil {		
+	if insertError != nil {
 		fmt.Println(insertError)
 		w.WriteHeader(http.StatusInternalServerError)
 		errorMessage := Utils.ErrorMessage(ja.CreateUserErrorMessage)
 		w.Write([]byte(errorMessage))
 		return
 	}
-	
+	token, err := Utils.EncodeJwtToken(reqBody.Email)
+	response := models.SessionResponse{
+		token,
+		ja.SuccessSignUpMessage,
+	}
+	bytes, err := json.Marshal(response)
 	w.WriteHeader(http.StatusCreated)
-	w.Write([]byte(ja.SuccessSignUpMessage))
-	defer db.Close()
+	w.Write(bytes)
 }
